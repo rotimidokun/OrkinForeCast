@@ -285,9 +285,9 @@ function shouldShowExpensePercentage(description: string) {
   return templateIndex >= EXPENSE_PERCENT_START_INDEX
 }
 
-function formatMetricShare(value: number | undefined, total: number | undefined) {
-  if (value === undefined || total === undefined || Math.abs(total) < 0.005) return null
-  return `${((value / total) * 100).toFixed(1)}%`
+function formatRevenueShare(value: number | undefined, revenue: number | undefined) {
+  if (value === undefined || revenue === undefined || Math.abs(revenue) < 0.005) return null
+  return `${((value / revenue) * 100).toFixed(1)}%`
 }
 
 function isKpiLine(description: string) {
@@ -304,6 +304,9 @@ type BranchBreakdownRow = {
   forecast: number
   budget: number
   actuals?: number
+  revenueForecast?: number
+  revenueBudget?: number
+  revenueActuals?: number
 }
 
 // Cache so re-hovering the same line doesn't refetch. Keyed by
@@ -352,6 +355,7 @@ function BranchBreakdownContent({
       .filter((b) => summaryBranchIds.includes(b.id))
       .map((b) => {
         const metric = summaryBranchMetrics.get(b.id)?.get(description)
+        const revenueMetric = summaryBranchMetrics.get(b.id)?.get(KPI_REVENUE)
         return {
           branchId: b.id,
           name: b.name,
@@ -359,6 +363,9 @@ function BranchBreakdownContent({
           forecast: metric?.forecast ?? 0,
           budget: metric?.budget ?? 0,
           actuals: metric?.actuals,
+          revenueForecast: revenueMetric?.forecast,
+          revenueBudget: revenueMetric?.budget,
+          revenueActuals: revenueMetric?.actuals,
         }
       })
       .sort((a, b) => {
@@ -469,16 +476,20 @@ function BranchBreakdownContent({
     actualsCount: sum.actualsCount + (row.actuals === undefined ? 0 : 1),
   }), { forecast: 0, budget: 0, actuals: 0, actualsCount: 0 })
 
+  const showExpensePercentage = shouldShowExpensePercentage(description)
+
   const renderBreakdownMetricStack = ({
     value,
-    total,
+    revenue,
+    showPercent,
     amountClassName,
   }: {
     value: number | undefined
-    total: number
+    revenue: number | undefined
+    showPercent: boolean
     amountClassName: string
   }) => {
-    const percent = formatMetricShare(value, total)
+    const percent = showPercent ? formatRevenueShare(value, revenue) : null
 
     return (
       <span className="flex min-h-9 flex-col items-end justify-center leading-tight">
@@ -530,17 +541,20 @@ function BranchBreakdownContent({
                   </span>
                   {renderBreakdownMetricStack({
                     value: r.forecast,
-                    total: totals.forecast,
+                    revenue: r.revenueForecast,
+                    showPercent: showExpensePercentage,
                     amountClassName: "text-right text-sm font-semibold tabular-nums",
                   })}
                   {renderBreakdownMetricStack({
                     value: r.budget,
-                    total: totals.budget,
+                    revenue: r.revenueBudget,
+                    showPercent: showExpensePercentage,
                     amountClassName: "text-right text-sm tabular-nums text-muted-foreground",
                   })}
                   {renderBreakdownMetricStack({
                     value: r.actuals,
-                    total: totals.actuals,
+                    revenue: r.revenueActuals,
+                    showPercent: showExpensePercentage,
                     amountClassName: "text-right text-sm tabular-nums text-muted-foreground",
                   })}
                 </button>
@@ -838,7 +852,7 @@ export function ForecastTable({
     containerClassName?: string
     percentClassName?: string
   }) => {
-    const percent = showPercent ? formatMetricShare(value, revenue) : null
+    const percent = showPercent ? formatRevenueShare(value, revenue) : null
 
     return (
       <div className={cn("flex min-h-9 flex-col justify-center leading-tight", containerClassName)}>

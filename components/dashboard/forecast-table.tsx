@@ -599,6 +599,7 @@ type ForecastTableProps = {
   onUpdateWorkingDays?: (month: number, days: number) => Promise<void>
   currentYear?: number
   autoScrollKey?: string
+  targetDescription?: string | null
   // Total Company drill-down
   isSummary?: boolean
   summaryBranchIds?: string[]
@@ -630,6 +631,7 @@ export function ForecastTable({
   onUpdateWorkingDays,
   currentYear = 2026,
   autoScrollKey,
+  targetDescription = null,
   isSummary = false,
   summaryBranchIds = [],
   branchMeta = [],
@@ -659,6 +661,8 @@ export function ForecastTable({
   const [showLastMonth, setShowLastMonth] = useState(true)
   const visibleMetricCount = [showForecast, showBudget, showLastYear, showLastMonth].filter(Boolean).length
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const rowRefs = useRef(new Map<string, HTMLDivElement | null>())
+  const [focusedDescription, setFocusedDescription] = useState<string | null>(null)
 
   // Filter forecasts by view mode
   const filteredForecasts = forecasts.filter((f) => {
@@ -727,6 +731,36 @@ export function ForecastTable({
 
     return () => window.cancelAnimationFrame(frame)
   }, [autoScrollKey, currentMonth, showAllMonths, visibleMetricCount])
+
+  useEffect(() => {
+    if (!targetDescription) return
+
+    const matchedDescription = descriptions.find(
+      (description) => normForMatch(description) === normForMatch(targetDescription)
+    )
+
+    if (!matchedDescription) return
+
+    const scrollContainer = scrollContainerRef.current
+    const targetRow = rowRefs.current.get(matchedDescription)
+    if (!scrollContainer || !targetRow) return
+
+    const frame = window.requestAnimationFrame(() => {
+      const rowTop = targetRow.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top + scrollContainer.scrollTop
+      const targetTop = Math.max(0, rowTop - 120)
+      scrollContainer.scrollTo({ top: targetTop, behavior: "auto" })
+      setFocusedDescription(matchedDescription)
+    })
+
+    const timeout = window.setTimeout(() => {
+      setFocusedDescription((current) => (current === matchedDescription ? null : current))
+    }, 2500)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(timeout)
+    }
+  }, [targetDescription, descriptions, autoScrollKey])
 
   const handleCellClick = (description: string, month: number, currentValue: number) => {
     if (!editable || !onUpdateForecast) return
@@ -1060,16 +1094,24 @@ export function ForecastTable({
             const showExpensePercentage = shouldShowExpensePercentage(description)
             const isEven = idx % 2 === 0
             const rowBg = isEven ? "bg-background" : "bg-secondary"
+            const isFocused = focusedDescription === description
 
             return (
               <div
                 key={description}
-                className={cn("flex w-max min-w-full border-b group transition-colors", rowBg)}
+                ref={(node) => {
+                  rowRefs.current.set(description, node)
+                }}
+                className={cn(
+                  "flex w-max min-w-full border-b group transition-colors",
+                  rowBg,
+                  isFocused && "bg-amber-50"
+                )}
               >
                 {isSummary ? (
                   <HoverCard openDelay={100} closeDelay={200}>
                     <HoverCardTrigger asChild>
-                      <div className={cn("w-[220px] min-w-[220px] shrink-0 sticky left-0 z-20 px-3 py-3 border-r font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] whitespace-normal break-words cursor-help", isEven ? "bg-background" : "bg-secondary", "group-hover:bg-accent")}>
+                      <div className={cn("w-[220px] min-w-[220px] shrink-0 sticky left-0 z-20 px-3 py-3 border-r font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] whitespace-normal break-words cursor-help", isFocused ? "bg-amber-100" : isEven ? "bg-background" : "bg-secondary", "group-hover:bg-accent")}>
                         <span className={cn("underline decoration-dotted underline-offset-4 decoration-muted-foreground/50", isSubtotalDescription(description) && "font-bold text-foreground")}>
                           {description}
                         </span>
@@ -1089,7 +1131,7 @@ export function ForecastTable({
                     </HoverCardContent>
                   </HoverCard>
                 ) : (
-                  <div className={cn("w-[220px] min-w-[220px] shrink-0 sticky left-0 z-20 px-3 py-3 border-r font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] whitespace-normal break-words", isEven ? "bg-background" : "bg-secondary", "group-hover:bg-accent")}>
+                  <div className={cn("w-[220px] min-w-[220px] shrink-0 sticky left-0 z-20 px-3 py-3 border-r font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] whitespace-normal break-words", isFocused ? "bg-amber-100" : isEven ? "bg-background" : "bg-secondary", "group-hover:bg-accent")}>
                     <span className={cn(isSubtotalDescription(description) && "font-bold text-foreground")}>
                       {description}
                     </span>

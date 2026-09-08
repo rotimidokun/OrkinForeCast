@@ -380,7 +380,7 @@ export default function ForecastPage() {
   const [loading, setLoading] = useState(true)
   const [needsBranchAssignment, setNeedsBranchAssignment] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedDescription, setSelectedDescription] = useState<string>(descriptionFromUrl || "all")
+  const [selectedDescription, setSelectedDescription] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [showMethodology, setShowMethodology] = useState<boolean>(false)
   const [currentYear, setCurrentYear] = useState(2026)
@@ -975,12 +975,9 @@ export default function ForecastPage() {
 
   useEffect(() => {
     if (descriptionFromUrl) {
-      setSelectedDescription(descriptionFromUrl)
+      setSelectedDescription("all")
       setSearchQuery("")
-      return
     }
-
-    setSelectedDescription("all")
   }, [descriptionFromUrl])
 
   useEffect(() => {
@@ -2266,6 +2263,7 @@ export default function ForecastPage() {
                       forecasts={filteredForecasts}
                       currentMonth={currentMonth}
                       autoScrollKey={`${selectedBranch}-${currentYear}-${currentMonth}`}
+                      targetDescription={descriptionFromUrl}
                       onUpdateForecast={handleUpdateForecast}
                       editable={selectedBranch !== ALL_BRANCHES_ID}
                       lastMonthActuals={processedLastMonthActuals}
